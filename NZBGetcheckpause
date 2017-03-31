@@ -1,0 +1,44 @@
+#!/bin/sh
+# ######################################################################
+#
+# NAME: NZBGetcheckpause
+#
+# DESCRIPTION: Check if NZBGet is in a paused state and then determine
+# if freespace has reached configured threshold before unpausing NZBGet.
+# 
+# Schedule with Crontab
+# */15 * * * * /home/nzbget/bin/NZBGetcheckpause >> ~/logs/NZBGetcheckpause.log
+# ######################################################################
+
+# ### Initial Variables ################################################
+
+# Path to NZBGet executable
+NZBGetbin=/opt/nzbget/nzbget
+# Path to file system to monitor
+filesystem=/dev/sda
+# Threshold percentage of used disk space
+thresholdpercent=70
+
+# ### Body #############################################################
+usedpercent=$(df $filesystem | grep / | awk '{ print $5}' | sed 's/%//g')
+echo "$(date "+%d.%m.%Y %T") Current used space on $FileSystem is $usedpercent%"
+
+if /opt/nzbget/nzbget -L S | grep -q 'Server state: Paused' ; then
+	echo "$(date "+%d.%m.%Y %T") NZBGet is currently in a Paused state."
+	if [ "$usedpercent" -lt "$thresholdpercent" ] ; then
+		echo "$(date "+%d.%m.%Y %T") Free space on $filesystem is below threshold of $thresholdpercent%. Unpausing NZBGet."
+		$NZBGetbin --unpause
+		if [ $? ]; then
+			echo "$(date "+%d.%m.%Y %T") NZBGet unpaused successfully."
+		else
+			echo "$(date "+%d.%m.%Y %T") ERROR unpausing NZBGet"
+		fi
+	else
+		echo "$(date "+%d.%m.%Y %T") Free space on $filesystem is still above threshold of $thresholdpercent%"
+	fi
+else
+	echo "$(date "+%d.%m.%Y %T") NZBGet is not in a paused state."
+fi
+
+exit 0
+
